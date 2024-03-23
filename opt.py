@@ -2,8 +2,9 @@ import os
 import streamlit as st
 import pandas as pd
 import pefile
+import numba
 import numpy as np
-from numba import njit
+
 
 def load_pe_file(file):
     try:
@@ -16,10 +17,11 @@ def load_pe_file(file):
 
 def jaccard_similarity(set1, set2):
     intersection = len(set1.intersection(set2))
-    union = len(set1.union(set2))
+    union = len(set1) + len(set2) - intersection
     return intersection / union if union != 0 else 0
 
-@njit
+
+@numba.jit
 def calculate_similarity(database_entry, size_of_code, address_of_entry, size_of_image):
     set1 = np.array([size_of_code, address_of_entry, size_of_image])
     set2 = np.array([database_entry[0], database_entry[1], database_entry[2]])
@@ -27,7 +29,8 @@ def calculate_similarity(database_entry, size_of_code, address_of_entry, size_of
     union = len(set1) + len(set2) - intersection
     return intersection / union if union != 0 else 0
 
-@njit
+
+@numba.jit
 def find_most_similar_entry(size_of_code, address_of_entry, size_of_image, database):
     max_similarity = 0
     most_similar_entry = None
@@ -41,6 +44,7 @@ def find_most_similar_entry(size_of_code, address_of_entry, size_of_image, datab
 
     return most_similar_entry, max_similarity
 
+
 def scan_directory_for_exe(directory):
     exe_files = []
     for root, dirs, files in os.walk(directory):
@@ -48,6 +52,7 @@ def scan_directory_for_exe(directory):
             if file.endswith(".exe"):
                 exe_files.append(os.path.join(root, file))
     return exe_files
+
 
 def main():
     st.set_page_config(page_title="Anti Virus App", page_icon="🛡️")
@@ -71,7 +76,7 @@ def main():
                 number_of_sections = pe.FILE_HEADER.NumberOfSections
                 size_of_image = pe.OPTIONAL_HEADER.SizeOfImage
                 subsystem = pe.OPTIONAL_HEADER.Subsystem
-                database_entry, similarity = find_most_similar_entry(size_of_code, address_of_entry, size_of_image, df)
+                database_entry, similarity = find_most_similar_entry(size_of_code, address_of_entry, size_of_image, df.values)
 
                 st.markdown("---")
                 if database_entry:
@@ -92,7 +97,6 @@ def main():
                 with st.spinner("Mengakses direktori..."):
                     exe_files = scan_directory_for_exe(directory_path)
                     if exe_files:
-                        st.write("ini mungkin memakan waktu lama")
                         st.write("Hasil Pemindaian:")
                         for i, file_path in enumerate(exe_files):
                             pe = load_pe_file(open(file_path, "rb"))
@@ -100,7 +104,7 @@ def main():
                                 size_of_code = pe.OPTIONAL_HEADER.SizeOfCode
                                 address_of_entry = pe.OPTIONAL_HEADER.AddressOfEntryPoint
                                 size_of_image = pe.OPTIONAL_HEADER.SizeOfImage
-                                database_entry, similarity = find_most_similar_entry(size_of_code, address_of_entry, size_of_image, df)
+                                database_entry, similarity = find_most_similar_entry(size_of_code, address_of_entry, size_of_image, df.values)
 
                                 if database_entry:
                                     st.write(f"**File {i+1}:** {os.path.basename(file_path)}")

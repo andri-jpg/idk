@@ -11,6 +11,13 @@ def load_pe_file(file):
         st.error("File tidak valid atau bukan file PE.")
         return None
 
+def get_available_drives():
+    drives = []
+    for drive in range(ord('A'), ord('Z')+1):
+        drive = chr(drive) + ':\\'
+        if os.path.exists(drive):
+            drives.append(drive)
+    return drives
 
 def jaccard_similarity(set1, set2):
     intersection = len(set1.intersection(set2))
@@ -51,20 +58,17 @@ def main():
     path_to_dataset = "virus.csv"
     df = pd.read_csv(path_to_dataset, sep='|')
 
-    option = st.radio("Pilih metode pemindaian:", ("Upload File PE", "Scan Directory"))
+    option = st.radio("Pilih metode pemindaian:", ("Upload File EXE", "Pilih drive", "Scan Directory"))
     st.markdown("---")
 
-    if option == "Upload File PE":
+    if option == "Upload File EXE":
         file_path = st.file_uploader("Upload File PE", type=["exe"])
         if file_path is not None:
             pe = load_pe_file(file_path)
             if pe:
-                machine = pe.FILE_HEADER.Machine
                 size_of_code = pe.OPTIONAL_HEADER.SizeOfCode
                 address_of_entry = pe.OPTIONAL_HEADER.AddressOfEntryPoint
-                number_of_sections = pe.FILE_HEADER.NumberOfSections
                 size_of_image = pe.OPTIONAL_HEADER.SizeOfImage
-                subsystem = pe.OPTIONAL_HEADER.Subsystem
                 database_entry, similarity = find_most_similar_entry(size_of_code, address_of_entry, size_of_image, df)
 
                 st.markdown("---")
@@ -79,14 +83,18 @@ def main():
                         st.error("File terdeteksi sebagai virus.")
                 else:
                     st.warning("Tidak ada entri yang cocok dalam database.")
-    else:
-        directory_path = st.text_input("Masukkan path direktori:")
+
+    elif option == "Pilih drive":
+        drives = get_available_drives()
+        drive = st.selectbox("Pilih drive:", drives)
+        directory_path = drive
         if st.button("Scan"):
             if os.path.isdir(directory_path):
                 with st.spinner("Mengakses direktori..."):
                     exe_files = scan_directory_for_exe(directory_path)
                     if exe_files:
                         st.write("Hasil Pemindaian:")
+                        st.write("Mungkin ini akan memakan waktu lama")
                         for i, file_path in enumerate(exe_files):
                             pe = load_pe_file(open(file_path, "rb"))
                             if pe:
@@ -108,6 +116,36 @@ def main():
             else:
                 st.error("Direktori tidak valid.")
 
-                
+    else:
+        directory_path = st.text_input("Masukkan path direktori:")
+        if st.button("Scan"):
+            if os.path.isdir(directory_path):
+                with st.spinner("Mengakses direktori..."):
+                    exe_files = scan_directory_for_exe(directory_path)
+                    if exe_files:
+                        st.write("Hasil Pemindaian:")
+                        st.write("Mungkin ini akan memakan waktu lama")
+                        for i, file_path in enumerate(exe_files):
+                            pe = load_pe_file(open(file_path, "rb"))
+                            if pe:
+                                size_of_code = pe.OPTIONAL_HEADER.SizeOfCode
+                                address_of_entry = pe.OPTIONAL_HEADER.AddressOfEntryPoint
+                                size_of_image = pe.OPTIONAL_HEADER.SizeOfImage
+                                database_entry, similarity = find_most_similar_entry(size_of_code, address_of_entry, size_of_image, df)
+
+                                if database_entry:
+                                    st.write(f"**File {i+1}:** {os.path.basename(file_path)}")
+                                    if similarity <= 0.8:
+                                        st.success("File tidak terdeteksi sebagai virus.")
+                                    else:
+                                        st.error("File terdeteksi sebagai virus.")
+                                else:
+                                    st.write(f"**File {i+1}:** {os.path.basename(file_path)} - Tidak ada entri yang cocok dalam database, kemungkinan bukan virus")
+                    else:
+                        st.warning("Tidak ditemukan file .exe dalam direktori.")
+            else:
+                st.error("Direktori tidak valid.")
+
 if __name__ == "__main__":
     main()
+
