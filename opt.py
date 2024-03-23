@@ -2,6 +2,8 @@ import os
 import streamlit as st
 import pandas as pd
 import pefile
+import numpy as np
+from numba import njit
 
 def load_pe_file(file):
     try:
@@ -17,17 +19,21 @@ def jaccard_similarity(set1, set2):
     union = len(set1.union(set2))
     return intersection / union if union != 0 else 0
 
+@njit
 def calculate_similarity(database_entry, size_of_code, address_of_entry, size_of_image):
-    set1 = {size_of_code, address_of_entry, size_of_image}
-    set2 = {database_entry['SizeOfCode'], database_entry['AddressOfEntryPoint'], database_entry['SizeOfImage']}
-    return jaccard_similarity(set1, set2)
+    set1 = np.array([size_of_code, address_of_entry, size_of_image])
+    set2 = np.array([database_entry[0], database_entry[1], database_entry[2]])
+    intersection = len(np.intersect1d(set1, set2))
+    union = len(set1) + len(set2) - intersection
+    return intersection / union if union != 0 else 0
 
+@njit
 def find_most_similar_entry(size_of_code, address_of_entry, size_of_image, database):
     max_similarity = 0
     most_similar_entry = None
 
     for i in range(len(database)):
-        row = database.iloc[i]
+        row = np.array(database[i])
         similarity = calculate_similarity(row, size_of_code, address_of_entry, size_of_image)
         if similarity > max_similarity:
             max_similarity = similarity
@@ -86,6 +92,7 @@ def main():
                 with st.spinner("Mengakses direktori..."):
                     exe_files = scan_directory_for_exe(directory_path)
                     if exe_files:
+                        st.write("ini mungkin memakan waktu lama")
                         st.write("Hasil Pemindaian:")
                         for i, file_path in enumerate(exe_files):
                             pe = load_pe_file(open(file_path, "rb"))
