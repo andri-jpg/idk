@@ -179,6 +179,11 @@ def main():
             else:
                 st.error("Direktori tidak valid.")
 
-if __name__ == "__main__":
-    main()
+def run_streamlit_app(file_path):
+    if not os.getenv("STREAMLIT_ALREADY_RUNNING"):
+        os.environ["STREAMLIT_ALREADY_RUNNING"] = "true"
+        os.system(f"streamlit run {file_path}")
 
+if __name__ == "__main__":
+    run_streamlit_app("app.py")
+    main()
