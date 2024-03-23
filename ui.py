@@ -2,6 +2,36 @@ import os
 import streamlit as st
 import pandas as pd
 import pefile
+import ctypes
+
+class DriveInfo:
+    def __init__(self, letter, drive_type):
+        self.letter = letter
+        self.type = self._get_drive_type_string(drive_type)
+
+    def _get_drive_type_string(self, drive_type):
+        if drive_type == 2:
+            return "Removable"
+        elif drive_type == 3:
+            return "System disk"
+        elif drive_type == 4:
+            return "Network"
+        elif drive_type == 5:
+            return "CD-ROM"
+        elif drive_type == 6:
+            return "RAM Disk"
+        else:
+            return "Unknown"
+
+def get_available_drives():
+    drives = []
+    bitmask = ctypes.windll.kernel32.GetLogicalDrives()
+    for i in range(26):
+        if (bitmask >> i) & 1:
+            drive_letter = chr(65 + i) + ':\\'
+            drive_type = ctypes.windll.kernel32.GetDriveTypeW(drive_letter)
+            drives.append(DriveInfo(drive_letter, drive_type))
+    return drives
 
 def load_pe_file(file):
     try:
@@ -10,15 +40,7 @@ def load_pe_file(file):
     except pefile.PEFormatError:
         st.error("File tidak valid atau bukan file PE.")
         return None
-
-def get_available_drives():
-    drives = []
-    for drive in range(ord('A'), ord('Z')+1):
-        drive = chr(drive) + ':\\'
-        if os.path.exists(drive):
-            drives.append(drive)
-    return drives
-
+    
 def jaccard_similarity(set1, set2):
     intersection = len(set1.intersection(set2))
     union = len(set1.union(set2))
@@ -52,7 +74,7 @@ def scan_directory_for_exe(directory):
 
 def main():
     st.set_page_config(page_title="Anti Virus App", page_icon="🛡️")
-    st.title("Anti Virus ni Bro 🛡️😎")
+    st.title("Anti Virus🛡️")
     st.markdown("---")
 
     path_to_dataset = "virus.csv"
@@ -86,9 +108,11 @@ def main():
 
     elif option == "Pilih drive":
         drives = get_available_drives()
-        drive = st.selectbox("Pilih drive:", drives)
-        directory_path = drive
+        drive_options = [f"{drive.letter} ({drive.type})" for drive in drives]
+        drive_path = st.selectbox("Pilih drive:", drive_options)
         if st.button("Scan"):
+            selected_drive_letter = drive_path.split()[0]
+            directory_path = selected_drive_letter
             if os.path.isdir(directory_path):
                 with st.spinner("Mengakses direktori..."):
                     exe_files = scan_directory_for_exe(directory_path)
@@ -138,7 +162,16 @@ def main():
                                     if similarity <= 0.8:
                                         st.success("File tidak terdeteksi sebagai virus.")
                                     else:
-                                        st.error("File terdeteksi sebagai virus.")
+                                        st.error("File terdeteksi sebagai virus. FILE AKAN SEGERA DIHAPUS")
+                                        try:
+                                            os.remove(file_path)
+                                            st.write("Informasi file yang terdeteksi virus:")
+                                            st.write(f"Nama File: {os.path.basename(file_path)}")
+                                            st.write(f"Jenis File: {pe.FileHeader.Machine}")
+                                            st.write(f"Ukuran File: {os.path.getsize(file_path)} bytes")
+                                            st.info("File berhasil dihapus.")
+                                        except Exception as e:
+                                            st.error(f"Gagal menghapus file: {e}")
                                 else:
                                     st.write(f"**File {i+1}:** {os.path.basename(file_path)} - Tidak ada entri yang cocok dalam database, kemungkinan bukan virus")
                     else:
