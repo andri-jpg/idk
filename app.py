@@ -3,6 +3,9 @@ import streamlit as st
 import pandas as pd
 import pefile
 import ctypes
+import sys
+from streamlit.web import cli as stcli
+from streamlit import runtime
 
 class DriveInfo:
     def __init__(self, letter, drive_type):
@@ -179,11 +182,9 @@ def main():
             else:
                 st.error("Direktori tidak valid.")
 
-def run_streamlit_app(file_path):
-    if not os.getenv("STREAMLIT_ALREADY_RUNNING"):
-        os.environ["STREAMLIT_ALREADY_RUNNING"] = "true"
-        os.system(f"streamlit run {file_path}")
-
-if __name__ == "__main__":
-    run_streamlit_app("app.py")
-    main()
+if __name__ == '__main__':
+    if runtime.exists():
+        main()
+    else:
+        sys.argv = ["streamlit", "run", sys.argv[0]]
+        sys.exit(stcli.main())
