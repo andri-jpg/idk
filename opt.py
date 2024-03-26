@@ -132,7 +132,16 @@ def main():
                                     if similarity <= 0.8:
                                         st.success("File tidak terdeteksi sebagai virus.")
                                     else:
-                                        st.error("File terdeteksi sebagai virus.")
+                                        st.error("File terdeteksi sebagai virus. FILE AKAN SEGERA DIHAPUS")
+                                        try:
+                                            
+                                            st.write("Informasi file yang terdeteksi virus:")
+                                            st.write(f"Nama File: {os.path.basename(file_path)}")
+                                            st.write(f"Ukuran File: {os.path.getsize(file_path)} bytes")
+                                            os.remove(file_path)
+                                            st.info("File berhasil dihapus.")
+                                        except Exception as e:
+                                            st.error(f"Gagal menghapus file: {e}")
                                 else:
                                     st.write(f"**File {i+1}:** {os.path.basename(file_path)} - Tidak ada entri yang cocok dalam database, kemungkinan bukan virus")
                     else:
@@ -164,11 +173,11 @@ def main():
                                     else:
                                         st.error("File terdeteksi sebagai virus. FILE AKAN SEGERA DIHAPUS")
                                         try:
-                                            os.remove(file_path)
+                                            
                                             st.write("Informasi file yang terdeteksi virus:")
                                             st.write(f"Nama File: {os.path.basename(file_path)}")
-                                            st.write(f"Jenis File: {pe.FileHeader.Machine}")
                                             st.write(f"Ukuran File: {os.path.getsize(file_path)} bytes")
+                                            os.remove(file_path)
                                             st.info("File berhasil dihapus.")
                                         except Exception as e:
                                             st.error(f"Gagal menghapus file: {e}")
